@@ -6,6 +6,18 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = ["httpx[http2]>=0.28.1", "mcp>=1.15.0", "dynaconf>=3.2.0"]
 
+[project.scripts]
+google-search-mcp = "server:main"
+google-search-mcp-http = "server_http:main"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# This is a single-module project; explicitly include server.py as a py_module
+py-modules = ["server", "server_http"]
+
 [project.optional-dependencies]
 dev = [
     "ruff>=0.8.0",
@@ -14,6 +26,8 @@ dev = [
     "pytest-mock>=3.10.0",
     "pytest-cov>=4.0.0",
 ]
+
+http = ["uvicorn[standard]>=0.30.0"]
 
 
 [tool.ruff]

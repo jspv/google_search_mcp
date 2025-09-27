@@ -55,11 +55,76 @@ Get these from:
 - `ALLOW_DOMAINS` (`GOOGLE_ALLOW_DOMAINS` env var): Comma-separated list of allowed domains (e.g., `example.com, docs.python.org`).
    When set, results outside these domains are filtered out.
 
+- Logging:
+   - `LOG_QUERIES` (`GOOGLE_LOG_QUERIES`): Enable logging of query hash, timing, and key params.
+   - `LOG_QUERY_TEXT` (`GOOGLE_LOG_QUERY_TEXT`): Also log full query text (off by default).
+   - `LOG_LEVEL` (`GOOGLE_LOG_LEVEL`): Set logging level (e.g., `INFO`, `DEBUG`).
+   - `LOG_FILE` (`GOOGLE_LOG_FILE`): Optional path to also write logs to a file (stderr remains enabled).
+
 ## Usage
 
 Run the server:
 ```bash
 python server.py
+```
+
+### Web-based MCP (SSE)
+
+If you are integrating with a browser or any client that uses MCP over HTTP/SSE, run the web server variant:
+
+```bash
+# Install HTTP extras
+uv sync --extra http
+
+# Start the SSE MCP server (defaults to 127.0.0.1:8000)
+uv run google-search-mcp-http
+
+# Or run directly
+uv run python -m server_http
+```
+
+This exposes the standard MCP endpoints used by web clients:
+- GET /sse (Server-Sent Events connection)
+- POST /messages (MCP messages)
+
+Notes:
+- CORS is enabled by default (CORS_ORIGINS="*"). Customize with `CORS_ORIGINS` env var.
+- Same configuration applies as stdio mode (`GOOGLE_API_KEY`, `GOOGLE_CX`, logging flags, etc.).
+
+### Run via uvx (no activation, from any folder)
+
+The project exposes a console script `google-search-mcp` so you can run it with `uvx` without activating a venv:
+
+```bash
+# Run using the repo as the source
+uvx --from /Users/justin/src/google_search_mcp google-search-mcp
+
+# If you need .env loading, either run with cwd set to the repo
+(cd /Users/justin/src/google_search_mcp && uvx --from . google-search-mcp)
+
+# Or point Dynaconf directly at the .env
+DYNACONF_DOTENV_PATH=/Users/justin/src/google_search_mcp/.env \
+uvx --from /Users/justin/src/google_search_mcp google-search-mcp
+```
+
+### Run via pipx (isolated, globally available)
+
+You can also install and run the script with pipx:
+
+```bash
+# Install from local path
+pipx install /Users/justin/src/google_search_mcp
+
+# Or from a VCS URL (example)
+# pipx install git+https://github.com/jspv/google_search_mcp.git
+
+# Run the server
+google-search-mcp
+
+# If you rely on .env, run it from the repo directory or set DYNACONF_DOTENV_PATH
+cd /Users/justin/src/google_search_mcp && google-search-mcp
+# or
+DYNACONF_DOTENV_PATH=/Users/justin/src/google_search_mcp/.env google-search-mcp
 ```
 
 ## Quick start
@@ -92,3 +157,27 @@ uv run python -c 'import asyncio, server; print(asyncio.run(server.search("site:
 ```
 
 Note: When using the MCP server with a client, the `search` tool parameters follow Google CSE semantics. In particular, `safe` must be one of `off` or `active`, and `num` is clamped to the CSE maximum of 10.
+
+### Logging behavior
+
+If `LOG_QUERIES` is enabled, the server will write a single line per request to stdout containing:
+- q_hash (short, non-reversible hash of the query), dt_ms (latency), num, start, safe, and endpoint (cse/siterestrict)
+- If `LOG_QUERY_TEXT` is true, it also includes the full `q` text.
+
+Example log line:
+
+```
+2025-09-27T12:34:56+0000 INFO google_search_mcp: search q_hash=1a2b3c4d dt_ms=123 num=5 start=1 safe=off endpoint=cse q="site:python.org httpx"
+```
+
+When a client spawns the server via `uvx`, logs go to the server process’s stderr by default (safe for MCP stdio). To persist logs regardless of the client’s stderr handling:
+
+- Set a file path (absolute recommended):
+   ```
+   GOOGLE_LOG_QUERIES=true
+   GOOGLE_LOG_FILE=/var/log/google_search_mcp.log
+   ```
+- Or redirect stderr in the launch command:
+   ```
+   uvx --from /path/to/repo google-search-mcp 2>> /tmp/google_search_mcp.log
+   ```

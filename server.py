@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
+import os
 import random
 import time
 from typing import Any
@@ -21,10 +23,12 @@ import httpx
 from dynaconf import Dynaconf
 from mcp.server.fastmcp import FastMCP
 
+_dotenv_hint = os.environ.get("DYNACONF_DOTENV_PATH") or os.environ.get("DOTENV_PATH")
+
 settings = Dynaconf(
     envvar_prefix="GOOGLE",
-    settings_files=[".env"],
     load_dotenv=True,
+    dotenv_path=_dotenv_hint,
 )
 
 GOOGLE_CSE_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
@@ -46,6 +50,43 @@ ALLOW_DOMAINS = {
     for d in (settings.get("ALLOW_DOMAINS") or "").split(",")
     if d.strip()
 }
+
+
+# --- Logging configuration (opt-in)
+def _as_bool(val: Any) -> bool:
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    if isinstance(val, (int, float)):
+        return bool(val)
+    if isinstance(val, str):
+        return val.strip().lower() in {"1", "true", "yes", "on"}
+    return False
+
+
+LOG_QUERIES = _as_bool(settings.get("LOG_QUERIES"))
+LOG_QUERY_TEXT = _as_bool(settings.get("LOG_QUERY_TEXT"))
+LOG_LEVEL = (settings.get("LOG_LEVEL") or "INFO").upper()
+LOG_FILE = settings.get("LOG_FILE")
+
+
+_logger = logging.getLogger("google_search_mcp")
+if not _logger.handlers:
+    formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+    # Default to stderr, which is safe with MCP stdio
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.setFormatter(formatter)
+    _logger.addHandler(stderr_handler)
+    # Optionally also log to a file if configured
+    if LOG_FILE:
+        file_handler = logging.FileHandler(LOG_FILE)
+        file_handler.setFormatter(formatter)
+        _logger.addHandler(file_handler)
+_logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
 
 # --- Reuse a single Async HTTP client (faster + fewer sockets)
 _http = httpx.AsyncClient(
@@ -99,19 +140,50 @@ async def _cse_get(endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
     for attempt in range(3):
         try:
             r = await _http.get(endpoint, params=params)
+            # Log status at DEBUG for observability (avoid logging params with secrets)
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug(
+                    "cse_get attempt=%d status=%s", attempt + 1, r.status_code
+                )
             r.raise_for_status()
             return r.json()
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
-            if status in (429, 500, 502, 503, 504) and attempt < 2:
-                await asyncio.sleep((0.2 + random.random() * 0.4) * (2**attempt))
+            retryable = status in (429, 500, 502, 503, 504) and attempt < 2
+            # Respect Retry-After if present, else use capped backoff with jitter
+            delay = None
+            if retryable:
+                ra = e.response.headers.get("Retry-After")
+                if ra:
+                    try:
+                        delay = max(0.0, float(ra))
+                    except ValueError:
+                        delay = None
+                if delay is None:
+                    delay = (0.2 + random.random() * 0.4) * (2**attempt)
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.debug(
+                        "cse_get retrying attempt=%d http_status=%s delay=%.2fs",
+                        attempt + 1,
+                        status,
+                        delay,
+                    )
+                await asyncio.sleep(delay)
                 continue
             # Bubble up a clean MCP error string
             detail = e.response.text[:500]
             raise RuntimeError(f"CSE request failed ({status}): {detail}") from e
         except httpx.HTTPError as e:
             if attempt < 2:
-                await asyncio.sleep((0.2 + random.random() * 0.4) * (2**attempt))
+                delay = (0.2 + random.random() * 0.4) * (2**attempt)
+                if _logger.isEnabledFor(logging.DEBUG):
+                    _logger.debug(
+                        "cse_get network error attempt=%d delay=%.2fs error=%s",
+                        attempt + 1,
+                        delay,
+                        str(e),
+                    )
+                await asyncio.sleep(delay)
                 continue
             raise RuntimeError(f"Network error contacting CSE: {e!s}") from e
 
@@ -216,7 +288,24 @@ async def search(
     data = await _cse_get(endpoint, params)
     dt = round((time.perf_counter() - t0) * 1000)
 
-    items = data.get("items", []) or []
+    # Optional query/latency logging (no secrets)
+    if LOG_QUERIES:
+        endpoint_name = (
+            "siterestrict" if endpoint == GOOGLE_CSE_SITERESTRICT_ENDPOINT else "cse"
+        )
+        parts = [
+            f"q_hash={_hash_q(q)}",
+            f"dt_ms={dt}",
+            f"num={num}",
+            f"start={start}",
+            f"safe={safe or '-'}",
+            f"endpoint={endpoint_name}",
+        ]
+        if LOG_QUERY_TEXT:
+            parts.append(f'q="{q}"')
+        _logger.info("search %s", " ".join(parts))
+
+    items = data.get("items") or []
     next_page = (data.get("queries", {}).get("nextPage") or [{}])[0].get("startIndex")
 
     # Avoid leaking secrets (e.g., API key/cx) in the echoed query payload
@@ -250,4 +339,13 @@ async def search(
 
 
 if __name__ == "__main__":
+    mcp.run()
+
+
+def main() -> None:
+    """Console-script entry point for running the MCP server via uvx or pipx.
+
+    Allows invoking the server as an installed script, e.g.:
+    uvx --from /path/to/google_search_mcp google-search-mcp
+    """
     mcp.run()
