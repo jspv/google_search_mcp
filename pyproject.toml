@@ -1,9 +1,9 @@
 [project]
 name = "google-search-mcp"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "oogle Search using MCP"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = ["httpx[http2]>=0.28.1", "mcp>=1.15.0", "dynaconf>=3.2.0"]
 
 [project.scripts]
@@ -29,6 +29,8 @@ dev = [
 ]
 
 http = ["uvicorn[standard]>=0.30.0"]
+
+lambda = ["run-mcp-servers-with-aws-lambda>=0.4.2"]
 
 
 [tool.ruff]

@@ -12,7 +12,10 @@ wheels/
 uv.lock
 
 .vscode/
+
+# for local testing and debugging
 .secret*
+settings.toml
 
 # Virtual environments
 .venv
