@@ -181,3 +181,42 @@ When a client spawns the server via `uvx`, logs go to the server process’s std
    ```
    uvx --from /path/to/repo google-search-mcp 2>> /tmp/google_search_mcp.log
    ```
+
+## Streamable HTTP Variant
+
+For clients that use StreamableHttpServerParams (non-SSE MCP over HTTP), run the Streamable HTTP server variant:
+
+```bash
+# Ensure HTTP extras are installed
+uv sync --extra http
+
+# Start the Streamable MCP server
+uv run google-search-mcp-stream
+
+# Or run directly
+uv run python -m server_http_stream
+```
+
+Client usage example with the official MCP streamable HTTP transport:
+
+```python
+import asyncio
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+
+
+async def main():
+   async with streamable_http_client("http://127.0.0.1:8000") as (read, write):
+      async with ClientSession(read, write) as session:
+         await session.initialize()
+         tools = await session.list_tools()
+         print([t.name for t in tools.tools])
+
+
+if __name__ == "__main__":
+   asyncio.run(main())
+```
+
+Notes:
+- Endpoints are managed by FastMCP; you should not call `/sse` for this variant.
+- CORS is enabled and configurable with `CORS_ORIGINS`.

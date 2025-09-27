@@ -9,6 +9,7 @@ dependencies = ["httpx[http2]>=0.28.1", "mcp>=1.15.0", "dynaconf>=3.2.0"]
 [project.scripts]
 google-search-mcp = "server:main"
 google-search-mcp-http = "server_http:main"
+google-search-mcp-stream = "server_http_stream:main"
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]
@@ -16,7 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 # This is a single-module project; explicitly include server.py as a py_module
-py-modules = ["server", "server_http"]
+py-modules = ["server", "server_http", "server_http_stream"]
 
 [project.optional-dependencies]
 dev = [
