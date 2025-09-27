@@ -11,8 +11,14 @@ wheels/
 # uv
 uv.lock
 
+.vscode/
+.secret*
+
 # Virtual environments
 .venv
 
 # Environment variables (keep secrets safe)
 .env
+
+# Ignore only top-level test helpers (keep tests/ directory tracked)
+/test*.py
