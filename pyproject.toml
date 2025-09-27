@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["httpx>=0.28.1", "mcp>=1.15.0", "dynaconf>=3.2.0"]
+dependencies = ["httpx[http2]>=0.28.1", "mcp>=1.15.0", "dynaconf>=3.2.0"]
 
 [project.optional-dependencies]
 dev = [
@@ -89,3 +89,4 @@ python_functions = ["test_*"]
 addopts = ["--strict-markers", "--strict-config", "--verbose"]
 markers = ["unit: Unit tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

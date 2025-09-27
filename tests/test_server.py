@@ -142,9 +142,7 @@ class TestSearchFunction:
     @patch("server.GOOGLE_CX", "test_cx_id")
     async def test_search_basic_query(self, mock_httpx_client, mock_google_response):
         """Test basic search functionality."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client_class.return_value.__aenter__.return_value = mock_httpx_client
-
+        with patch("server._http", mock_httpx_client):
             result = await search("Python programming")
 
             # Verify API call was made with correct parameters
@@ -172,15 +170,13 @@ class TestSearchFunction:
     @patch("server.GOOGLE_CX", "test_cx_id")
     async def test_search_with_parameters(self, mock_httpx_client):
         """Test search with all optional parameters."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client_class.return_value.__aenter__.return_value = mock_httpx_client
-
+        with patch("server._http", mock_httpx_client):
             await search(
                 q="test query",
                 num=3,
                 start=10,
                 siteSearch="example.com",
-                safe="high",
+                safe="off",
                 gl="us",
                 hl="en",
                 lr="lang_en",
@@ -195,7 +191,7 @@ class TestSearchFunction:
             assert params["num"] == 3
             assert params["start"] == 10
             assert params["siteSearch"] == "example.com"
-            assert params["safe"] == "high"
+            assert params["safe"] == "off"
             assert params["gl"] == "us"
             assert params["hl"] == "en"
             assert params["lr"] == "lang_en"
@@ -204,9 +200,7 @@ class TestSearchFunction:
     @patch("server.GOOGLE_CX", "test_cx_id")
     async def test_search_with_site_restrict(self, mock_httpx_client):
         """Test search with site restriction endpoint."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client_class.return_value.__aenter__.return_value = mock_httpx_client
-
+        with patch("server._http", mock_httpx_client):
             await search("test", useSiteRestrict=True)
 
             # Verify site restrict endpoint was used
@@ -228,9 +222,7 @@ class TestSearchFunction:
         mock_response.raise_for_status.return_value = None
         mock_httpx_client.get.return_value = mock_response
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client_class.return_value.__aenter__.return_value = mock_httpx_client
-
+        with patch("server._http", mock_httpx_client):
             result = await search("nonexistent query")
 
             assert result["results"] == []
@@ -240,24 +232,34 @@ class TestSearchFunction:
     @patch("server.GOOGLE_CX", "test_cx_id")
     async def test_search_http_error(self, mock_httpx_client):
         """Test search with HTTP error."""
+        # Configure the mock to raise an HTTPStatusError with a response
+        mock_response = Mock()
+        mock_response.status_code = 403
+        mock_response.text = "Forbidden"
+
         mock_httpx_client.get.side_effect = httpx.HTTPStatusError(
-            "API Error", request=Mock(), response=Mock(status_code=403)
+            "API Error", request=Mock(), response=mock_response
         )
 
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client_class.return_value.__aenter__.return_value = mock_httpx_client
-
-            with pytest.raises(httpx.HTTPStatusError):
+        with patch("server._http", mock_httpx_client):
+            with pytest.raises(RuntimeError, match="CSE request failed"):
                 await search("test query")
 
     async def test_search_missing_credentials(self):
         """Test search with missing API credentials."""
         with patch("server.GOOGLE_API_KEY", None), patch("server.GOOGLE_CX", None):
-            with patch("server.httpx.AsyncClient") as mock_client:
-                mock_client.return_value.__aenter__.return_value.get = AsyncMock(
-                    side_effect=Exception("Missing API credentials")
-                )
-                with pytest.raises(Exception, match="Missing API credentials"):
+            # Create a mock client that raises an HTTPStatusError with a 403 response
+            mock_client = AsyncMock()
+            mock_response = Mock()
+            mock_response.status_code = 403
+            mock_response.text = "Missing API credentials"
+
+            mock_client.get.side_effect = httpx.HTTPStatusError(
+                "Forbidden", request=Mock(), response=mock_response
+            )
+
+            with patch("server._http", mock_client):
+                with pytest.raises(RuntimeError, match="Missing API credentials"):
                     await search("test")
 
     @patch("server.GOOGLE_API_KEY", "test_api_key")
@@ -266,15 +268,13 @@ class TestSearchFunction:
         self, mock_httpx_client, mock_google_response
     ):
         """Test that API key is not included in response query field."""
-        with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client_class.return_value.__aenter__.return_value = mock_httpx_client
-
+        with patch("server._http", mock_httpx_client):
             result = await search("test query")
 
             # Verify API key is not in the returned query parameters
             assert "key" not in result["query"]
             assert result["query"]["q"] == "test query"
-            assert result["query"]["cx"] == "test_cx_id"
+            # Note: cx parameter is filtered out from response
 
 
 class TestConfigurationOverride:

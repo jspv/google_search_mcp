@@ -50,9 +50,45 @@ Get these from:
 - API Key: [Google Cloud Console](https://console.developers.google.com/)
 - Search Engine ID: [Google Custom Search](https://cse.google.com/cse/all)
 
+### Optional Configuration
+
+- `ALLOW_DOMAINS` (`GOOGLE_ALLOW_DOMAINS` env var): Comma-separated list of allowed domains (e.g., `example.com, docs.python.org`).
+   When set, results outside these domains are filtered out.
+
 ## Usage
 
 Run the server:
 ```bash
 python server.py
 ```
+
+## Quick start
+
+This project uses httpx with HTTP/2 support enabled for better performance. The dependency is declared as `httpx[http2]` and will install the `h2` package automatically when you sync the environment.
+
+### Using uv (recommended)
+
+```bash
+# Install deps from pyproject/lockfile
+uv sync
+
+# Create and fill in your configuration
+cp .env.example .env
+$EDITOR .env
+
+# Run tests (optional sanity check)
+uv run pytest -q
+
+# Start the MCP server
+uv run python server.py
+```
+
+### Try it quickly (no MCP client required)
+
+You can also call the tool function directly for a quick smoke test (uses your env vars):
+
+```bash
+uv run python -c 'import asyncio, server; print(asyncio.run(server.search("site:python.org httpx", num=2, safe="off")))'
+```
+
+Note: When using the MCP server with a client, the `search` tool parameters follow Google CSE semantics. In particular, `safe` must be one of `off` or `active`, and `num` is clamped to the CSE maximum of 10.
