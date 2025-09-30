@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy the google-search MCP server as an AWS Lambda function (ZIP-based) for use behind Bedrock AgentCore Gateway.
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: google-search-mcp
+    Description: Name of the Lambda function.
+
+  S3Bucket:
+    Type: String
+    Description: S3 bucket that contains the deployment ZIP (dist/google_search_mcp_lambda.zip).
+
+  S3Key:
+    Type: String
+    Description: S3 key of the deployment ZIP in the bucket.
+
+  RoleArn:
+    Type: String
+    Default: ""
+    Description: Optional existing IAM role ARN for Lambda. Leave blank to create a minimal role.
+
+  Runtime:
+    Type: String
+    Default: python3.12
+    AllowedValues:
+      - python3.12
+    Description: Lambda runtime. Build the ZIP with matching Python version.
+
+  TimeoutSeconds:
+    Type: Number
+    Default: 60
+    MinValue: 3
+    MaxValue: 900
+    Description: Lambda timeout.
+
+  MemorySizeMB:
+    Type: Number
+    Default: 512
+    MinValue: 128
+    MaxValue: 10240
+    Description: Lambda memory size in MB.
+
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues:
+      [
+        1,
+        3,
+        5,
+        7,
+        14,
+        30,
+        60,
+        90,
+        120,
+        150,
+        180,
+        365,
+        400,
+        545,
+        731,
+        1827,
+        3653,
+      ]
+    Description: CloudWatch Logs retention for the function log group.
+
+  GoogleApiKey:
+    Type: String
+    NoEcho: true
+    Description: GOOGLE_API_KEY for Google Custom Search.
+
+  GoogleCx:
+    Type: String
+    NoEcho: true
+    Description: GOOGLE_CX (Custom Search Engine ID).
+
+  GoogleLogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [CRITICAL, ERROR, WARNING, INFO, DEBUG]
+    Description: GOOGLE_LOG_LEVEL environment variable.
+
+  GoogleLogQueries:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: GOOGLE_LOG_QUERIES environment variable.
+
+  GoogleLogQueryText:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: GOOGLE_LOG_QUERY_TEXT environment variable.
+
+Conditions:
+  CreateRole: !Equals [!Ref RoleArn, ""]
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateRole
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+
+  FunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${FunctionName}
+      RetentionInDays: !Ref LogRetentionDays
+
+  McpLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Runtime: !Ref Runtime
+      Handler: lambda_handler.handler
+      Role: !If [CreateRole, !GetAtt LambdaExecutionRole.Arn, !Ref RoleArn]
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref S3Key
+      Timeout: !Ref TimeoutSeconds
+      MemorySize: !Ref MemorySizeMB
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          GOOGLE_API_KEY: !Ref GoogleApiKey
+          GOOGLE_CX: !Ref GoogleCx
+          GOOGLE_LOG_LEVEL: !Ref GoogleLogLevel
+          GOOGLE_LOG_QUERIES: !Ref GoogleLogQueries
+          GOOGLE_LOG_QUERY_TEXT: !Ref GoogleLogQueryText
+
+Outputs:
+  FunctionName:
+    Value: !Ref McpLambda
+    Description: Name of the created/updated Lambda function.
+  FunctionArn:
+    Value: !GetAtt McpLambda.Arn
+    Description: ARN of the created/updated Lambda function.

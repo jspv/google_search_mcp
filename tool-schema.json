@@ -1,178 +1,99 @@
-{
-  "tools": [
-    {
-      "name": "search",
-      "description": "Google Programmable Search (CSE) via MCP.\n\n    Parameters:\n        q: Query string. Trimmed; required.\n        num: Number of results to return (1..10; clamped).\n        start: 1-based index for pagination start (clamped to >=1).\n        siteSearch: Limit results to a site (or domain) per CSE rules.\n        siteSearchFilter: \"i\" to include or \"e\" to exclude `siteSearch`.\n        safe: SafeSearch level: \"off\" or \"active\".\n        gl: Geolocation/country code.\n        hl: UI language.\n        lr: Language restrict (e.g., \"lang_en\").\n        useSiteRestrict: Use the siterestrict endpoint variant.\n        dateRestrict: Time filter (e.g., \"d7\", \"m3\", \"y1\").\n        exactTerms, orTerms, excludeTerms: Query modifiers.\n        cxOverride: Override the configured CSE ID (avoid echoing to clients).\n        lean_fields: If True, request a smaller response via fields projection.\n\n    Returns:\n        A dict with keys: provider, query (sanitized), searchInfo, nextPage,\n        latency_ms, results (normalized), raw (subset), trace (q hash).\n\n    Raises:\n        ValueError: For invalid parameter values (e.g., unsupported safe).\n        RuntimeError: For Google API errors or network failures.\n    ",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "q": {
-            "title": "Q",
-            "type": "string"
-          },
-          "num": {
-            "default": 5,
-            "title": "Num",
-            "type": "integer"
-          },
-          "start": {
-            "default": 1,
-            "title": "Start",
-            "type": "integer"
-          },
-          "siteSearch": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Sitesearch"
-          },
-          "siteSearchFilter": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Sitesearchfilter"
-          },
-          "safe": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Safe"
-          },
-          "gl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Gl"
-          },
-          "hl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Hl"
-          },
-          "lr": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Lr"
-          },
-          "useSiteRestrict": {
-            "default": false,
-            "title": "Usesiterestrict",
-            "type": "boolean"
-          },
-          "dateRestrict": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Daterestrict"
-          },
-          "exactTerms": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Exactterms"
-          },
-          "orTerms": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Orterms"
-          },
-          "excludeTerms": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Excludeterms"
-          },
-          "cxOverride": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Cxoverride"
-          },
-          "lean_fields": {
-            "default": true,
-            "title": "Lean Fields",
-            "type": "boolean"
-          }
+[
+  {
+    "name": "search",
+    "description": "Google Programmable Search (CSE) via MCP.\n\n    Parameters:\n        q: Query string. Trimmed; required.\n        num: Number of results to return (1..10; clamped).\n        start: 1-based index for pagination start (clamped to >=1).\n        siteSearch: Limit results to a site (or domain) per CSE rules.\n        siteSearchFilter: \"i\" to include or \"e\" to exclude `siteSearch`.\n        safe: SafeSearch level: \"off\" or \"active\".\n        gl: Geolocation/country code.\n        hl: UI language.\n        lr: Language restrict (e.g., \"lang_en\").\n        useSiteRestrict: Use the siterestrict endpoint variant.\n        dateRestrict: Time filter (e.g., \"d7\", \"m3\", \"y1\").\n        exactTerms, orTerms, excludeTerms: Query modifiers.\n        cxOverride: Override the configured CSE ID (avoid echoing to clients).\n        lean_fields: If True, request a smaller response via fields projection.\n\n    Returns:\n        A dict with keys: provider, query (sanitized), searchInfo, nextPage,\n        latency_ms, results (normalized), raw (subset), trace (q hash).\n\n    Raises:\n        ValueError: For invalid parameter values (e.g., unsupported safe).\n        RuntimeError: For Google API errors or network failures.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "title": "Q",
+          "type": "string"
         },
-        "required": [
-          "q"
-        ],
-        "title": "searchArguments"
+        "num": {
+          "default": 5,
+          "title": "Num",
+          "type": "integer"
+        },
+        "start": {
+          "default": 1,
+          "title": "Start",
+          "type": "integer"
+        },
+        "siteSearch": {
+          "type": "string",
+          "default": null,
+          "title": "Sitesearch"
+        },
+        "siteSearchFilter": {
+          "type": "string",
+          "default": null,
+          "title": "Sitesearchfilter"
+        },
+        "safe": {
+          "type": "string",
+          "default": null,
+          "title": "Safe"
+        },
+        "gl": {
+          "type": "string",
+          "default": null,
+          "title": "Gl"
+        },
+        "hl": {
+          "type": "string",
+          "default": null,
+          "title": "Hl"
+        },
+        "lr": {
+          "type": "string",
+          "default": null,
+          "title": "Lr"
+        },
+        "useSiteRestrict": {
+          "default": false,
+          "title": "Usesiterestrict",
+          "type": "boolean"
+        },
+        "dateRestrict": {
+          "type": "string",
+          "default": null,
+          "title": "Daterestrict"
+        },
+        "exactTerms": {
+          "type": "string",
+          "default": null,
+          "title": "Exactterms"
+        },
+        "orTerms": {
+          "type": "string",
+          "default": null,
+          "title": "Orterms"
+        },
+        "excludeTerms": {
+          "type": "string",
+          "default": null,
+          "title": "Excludeterms"
+        },
+        "cxOverride": {
+          "type": "string",
+          "default": null,
+          "title": "Cxoverride"
+        },
+        "lean_fields": {
+          "default": true,
+          "title": "Lean Fields",
+          "type": "boolean"
+        }
       },
-      "outputSchema": {
-        "type": "object",
-        "additionalProperties": true,
-        "title": "searchDictOutput"
-      }
+      "required": [
+        "q"
+      ],
+      "title": "searchArguments"
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": true,
+      "title": "searchDictOutput"
     }
-  ]
-}
+  }
+]

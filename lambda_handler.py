@@ -25,6 +25,17 @@ def handler(event, context):
     Imports the AWS adapter lazily so local dev/tests don't require the
     package. Configure Lambda with `run-mcp-servers-with-aws-lambda` installed.
     """
+    # Simple health check for CLI smoke tests
+    try:
+        if isinstance(event, dict) and (event.get("ping") or event.get("health")):
+            return {
+                "status": "ok",
+                "handler": "lambda",
+                "python": sys.version.split()[0],
+            }
+    except Exception:
+        # If event is not a dict, ignore and continue
+        pass
     try:
         from mcp_lambda import (
             BedrockAgentCoreGatewayTargetHandler,

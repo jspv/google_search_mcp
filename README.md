@@ -220,3 +220,139 @@ if __name__ == "__main__":
 Notes:
 - Endpoints are managed by FastMCP; you should not call `/sse` for this variant.
 - CORS is enabled and configurable with `CORS_ORIGINS`.
+
+## Testing
+
+### Unit Tests
+
+Run the test suite to validate functionality:
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with quiet output
+uv run pytest -q
+
+# Run specific test files
+uv run pytest tests/test_server.py
+uv run pytest tests/test_server_http.py
+```
+
+## Testing
+
+### Unit Tests
+
+Run the test suite to validate functionality:
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with quiet output
+uv run pytest -q
+
+# Run specific test files
+uv run pytest tests/test_server.py
+uv run pytest tests/test_server_http.py
+```
+
+### Local Testing
+
+Test the server locally using the MCP Inspector or direct HTTP calls:
+
+```bash
+# Start HTTP streaming server
+HOST=0.0.0.0 PORT=8000 uv run python -m server_http_stream
+
+# Test with curl (in another terminal)
+curl http://localhost:8000/list_tools
+```
+
+## Testing
+
+The project includes a comprehensive test suite located in the `tests/` directory. All tests use pytest and mock external dependencies for reliable, fast execution.
+
+### Unit Tests
+
+Run the comprehensive test suite to validate functionality:
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with quiet output
+uv run pytest -q
+
+# Run specific test modules
+uv run pytest tests/test_server.py              # Core MCP server functionality  
+uv run pytest tests/test_server_http.py         # HTTP endpoint testing
+uv run pytest tests/test_server_http_stream.py  # HTTP streaming testing
+uv run pytest tests/test_client.py              # Client integration
+uv run pytest tests/test_logging.py             # Logging configuration
+```
+
+### Local Testing
+
+Test the server locally using the MCP Inspector or direct HTTP calls:
+
+```bash
+# Start HTTP streaming server
+HOST=0.0.0.0 PORT=8000 uv run python -m server_http_stream
+
+# Test with curl (in another terminal)
+curl http://localhost:8000/list_tools
+```
+
+### AWS Gateway Testing
+
+For AWS AgentCore Gateway deployments, use the dedicated test script:
+
+```bash
+# Test gateway with authentication
+python3 deploy/test_gateway.py \
+  "https://your-gateway.amazonaws.com/mcp" \
+  "client-id" \
+  "client-secret" \
+  "https://domain.auth.region.amazoncognito.com/oauth2/token"
+```
+
+This validates authentication, tool listing, and tool execution through the gateway.
+
+## AWS Lambda Deployment
+
+Deploy this MCP server to AWS Lambda and integrate with Bedrock AgentCore Gateway:
+
+```bash
+# Build and deploy to Lambda
+./deploy/build_zip.sh        # Cross-platform build
+./deploy/cfn_deploy.sh       # Deploy via CloudFormation
+
+# Setup AgentCore Gateway (attempts full automation)
+./deploy/automate_gateway.sh
+
+# If automation fails, use console-based setup
+./deploy/setup_gateway.sh    # Generate schema and instructions
+
+# Test the Gateway endpoint
+python3 deploy/test_gateway.py https://your-gateway-url.amazonaws.com client-id client-secret token-url
+```
+
+### Known Issues
+
+**Environment Variable Inheritance**: There is currently a known issue where environment variables set in the Lambda function are not properly inherited by the MCP server subprocess. This causes tool calls to fail with "Missing GOOGLE_API_KEY or GOOGLE_CX" errors, even when these variables are correctly set in the Lambda environment.
+
+- **Root Cause**: The MCP Lambda adapter starts the MCP server as a subprocess which doesn't inherit the Lambda process environment variables
+- **Workaround**: Under investigation - considering modifications to how the server reads configuration
+- **Status**: Tool listing works correctly, but tool execution fails due to missing environment variables in subprocess
+
+### AgentCore Gateway Integration
+
+The Gateway uses JSON-RPC 2.0 protocol (not standard MCP HTTP endpoints). Authentication requires:
+- Cognito client credentials OAuth flow
+- Token endpoint format: `https://domain.auth.region.amazoncognito.com/oauth2/token`
+- Proper JSON-RPC 2.0 request format for tool operations
+
+See [`deploy/README-lambda-zip.md`](deploy/README-lambda-zip.md) for detailed deployment instructions, including cross-platform builds, infrastructure as code, and AgentCore Gateway integration.
+
+**Note**: AgentCore Gateway compute targets and MCP providers currently require manual console configuration as APIs are not publicly available.

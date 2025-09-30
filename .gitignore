@@ -16,6 +16,7 @@ uv.lock
 # for local testing and debugging
 .secret*
 settings.toml
+gateway-config.json
 
 # Virtual environments
 .venv
