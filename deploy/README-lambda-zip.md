@@ -110,20 +110,13 @@ This validates both the tools/list and a sample search query.
 - Google API errors: verify GOOGLE_API_KEY and GOOGLE_CX.
 - Smoke-test ping: you can call the Lambda directly with `{ "ping": true }` to get `{ "status": "ok" }` without a full Gateway event shape.
 
-### Known Issue: Environment Variable Inheritance
+### Known Issue: Environment Variable Inheritance (RESOLVED)
 
-**Problem**: Tool calls fail with "Missing GOOGLE_API_KEY or GOOGLE_CX" errors even when environment variables are correctly set in Lambda.
+**Problem**: ~~Tool calls failed with "Missing GOOGLE_API_KEY or GOOGLE_CX" errors even when environment variables were correctly set in Lambda.~~
 
-**Root Cause**: The MCP Lambda adapter (`run-mcp-servers-with-aws-lambda`) starts the MCP server as a subprocess that doesn't inherit the Lambda process environment variables.
+**Solution**: The Lambda handler now explicitly passes environment variables to the MCP server subprocess using the `StdioServerParameters.env` parameter.
 
-**Symptoms**:
-- Tool listing works correctly (returns proper schema)
-- Tool execution fails with missing environment variable errors
-- Environment variables are visible in Lambda main process but not in MCP server subprocess
-
-**Current Status**: Under investigation. Consider alternative configuration approaches or subprocess environment passing modifications.
-
-**Workaround**: None currently available. This affects AgentCore Gateway integration specifically.
+**Implementation**: Environment variables are now properly inherited by the subprocess, resolving the AgentCore Gateway integration issue.
 
 ## Deploy with CloudFormation (optional)
 

@@ -24,10 +24,9 @@ Or set environment variables:
   export COGNITO_TOKEN_URL="https://your-domain.auth.us-east-1.amazoncognito.com/oauth2/token"
   python3 test_gateway.py
 
-KNOWN ISSUE:
-Tool calls may fail with "Missing GOOGLE_API_KEY or GOOGLE_CX" errors due to environment
-variable inheritance issues between Lambda main process and MCP server subprocess.
-This affects tool execution but not tool listing.
+NOTE:
+The environment variable inheritance issue has been resolved. Tool calls should now work
+properly with AgentCore Gateway integration.
 """
 
 import os

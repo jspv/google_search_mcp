@@ -5,15 +5,18 @@ Bedrock AgentCore Gateway using the AWS "run-mcp-servers-with-aws-lambda"
 adapter.
 
 This spins up the stdio MCP server defined in `server.py` as a child process
-per invocation and bridges the Gateway's request to the server.
+per invocation and bridges the Gateway's request to the server. Environment
+variables are explicitly passed to the subprocess to ensure proper configuration.
 
 Environment:
 - Provide GOOGLE_API_KEY and GOOGLE_CX as Lambda environment variables.
+- Optionally GOOGLE_LOG_LEVEL and GOOGLE_LOG_QUERIES for logging configuration.
 - Optionally DYNACONF_DOTENV_PATH if you want to load a .env in development.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 
 from mcp.client.stdio import StdioServerParameters
@@ -50,9 +53,25 @@ def handler(event, context):
         ) from e
 
     # Launch our stdio MCP server via `python -m server`
+    # Explicitly pass environment variables to ensure subprocess inherits them
+    env_vars = {
+        # Google API credentials (required)
+        "GOOGLE_API_KEY": os.environ.get("GOOGLE_API_KEY"),
+        "GOOGLE_CX": os.environ.get("GOOGLE_CX"),
+        # Optional logging configuration
+        "GOOGLE_LOG_LEVEL": os.environ.get("GOOGLE_LOG_LEVEL"),
+        "GOOGLE_LOG_QUERIES": os.environ.get("GOOGLE_LOG_QUERIES"),
+        # Essential system environment variables
+        "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+    }
+    # Filter out None values to avoid passing empty environment variables
+    env_vars = {k: v for k, v in env_vars.items() if v is not None}
+    
     server_params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "server"],
+        env=env_vars,
     )
 
     request_handler = StdioServerAdapterRequestHandler(server_params)

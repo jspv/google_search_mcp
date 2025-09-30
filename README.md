@@ -340,11 +340,9 @@ python3 deploy/test_gateway.py https://your-gateway-url.amazonaws.com client-id 
 
 ### Known Issues
 
-**Environment Variable Inheritance**: There is currently a known issue where environment variables set in the Lambda function are not properly inherited by the MCP server subprocess. This causes tool calls to fail with "Missing GOOGLE_API_KEY or GOOGLE_CX" errors, even when these variables are correctly set in the Lambda environment.
+**Environment Variable Inheritance (RESOLVED)**: ~~There was an issue where environment variables set in the Lambda function were not properly inherited by the MCP server subprocess. This has been resolved by explicitly passing environment variables through the `StdioServerParameters.env` parameter.~~
 
-- **Root Cause**: The MCP Lambda adapter starts the MCP server as a subprocess which doesn't inherit the Lambda process environment variables
-- **Workaround**: Under investigation - considering modifications to how the server reads configuration
-- **Status**: Tool listing works correctly, but tool execution fails due to missing environment variables in subprocess
+The Lambda handler now correctly passes environment variables to the MCP server subprocess, ensuring tool calls work properly.
 
 ### AgentCore Gateway Integration
 
