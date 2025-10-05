@@ -1,80 +1,89 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Generate tool schema for AWS AgentCore Gateway from the local stdio MCP server.
-# Uses the MCP Inspector to directly extract tool schemas in the correct format.
+# Generate an MCP tool schema (for AWS AgentCore Gateway) by connecting to a
+# stdio MCP server. Configure the server command via env or args.
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if ! command -v npx >/dev/null 2>&1; then
-  echo "npx not found. Install Node.js/npm." >&2
-  exit 2
+echo "Generating tool schema..."
+
+# Choose Python runner for the helper script
+if command -v uv >/dev/null 2>&1; then
+    PYRUN=(uv run -q python)
+else
+    PYRUN=(python3)
 fi
 
-# Allow user to override env; defaults are placeholders
+# Choose default MCP server launch if not provided
+if [[ -z "${DUMP_MCP_COMMAND:-}" && -z "${DUMP_MCP_ARGS:-}" ]]; then
+    if command -v uvx >/dev/null 2>&1; then
+        CMD="uvx"
+        ARGS="--from . google-search-mcp"
+    elif command -v uv >/dev/null 2>&1; then
+        CMD="uv"
+        ARGS="run -q google-search-mcp"
+    else
+        CMD="python3"
+        ARGS="-c 'import server as m; m.main()'"
+    fi
+else
+    CMD="${DUMP_MCP_COMMAND:-uvx}"
+    ARGS="${DUMP_MCP_ARGS:---from . google-search-mcp}"
+fi
+
+# Provide placeholder env so the server can import for schema listing
 export GOOGLE_API_KEY="${GOOGLE_API_KEY:-placeholder}"
 export GOOGLE_CX="${GOOGLE_CX:-placeholder}"
 
-echo "Generating tool schema..."
+# Produce a raw schema payload using the Python helper
+RAW_OUT="dist/schema/tool-schema-raw.json"
+FINAL_OUT="dist/schema/tool-schema.json"
+mkdir -p dist/schema
+"${PYRUN[@]}" scripts/dump_tool_schema.py --command "$CMD" --args "$ARGS" --out "$RAW_OUT"
 
-# Generate tool schema using MCP Inspector, then convert to AWS AgentCore Gateway format
-npx @modelcontextprotocol/inspector --cli --method tools/list \
-  uvx --from . google-search-mcp > tool-schema-raw.json
-
-# Convert to AWS AgentCore Gateway format
-# - Extract tools array from {"tools": [...]} wrapper
-# - Flatten anyOf patterns (AWS doesn't support them)
-# - Result format matches AWS documentation examples
-python3 -c "
-import json
-
-with open('tool-schema-raw.json') as f:
+# Convert to AWS AgentCore format (tools array; flatten anyOf)
+python3 - <<'PY'
+import json, sys
+with open('dist/schema/tool-schema-raw.json') as f:
     schema = json.load(f)
 
 def fix_property(prop):
-    '''Convert anyOf patterns to simple types for AWS compatibility'''
-    if 'anyOf' in prop:
-        # Find the non-null type
+    if isinstance(prop, dict) and 'anyOf' in prop:
         for item in prop['anyOf']:
             if item.get('type') != 'null':
-                # Use the non-null type, preserve other properties
-                result = {'type': item['type']}
-                for key in ['default', 'title']:
-                    if key in prop:
-                        result[key] = prop[key]
-                return result
-        # Fallback to string if only null types found
-        return {'type': 'string', 'title': prop.get('title', ''), 'default': prop.get('default')}
+                res = {'type': item.get('type')}
+                for k in ('default','title'):
+                    if k in prop:
+                        res[k] = prop[k]
+                return res
+        return {'type':'string','title':prop.get('title',''), 'default':prop.get('default')}
     return prop
 
-# Process the tools
-tools = schema.get('tools', [])
+tools = schema.get('tools', []) if isinstance(schema, dict) else schema
 for tool in tools:
-    if 'inputSchema' in tool and 'properties' in tool['inputSchema']:
-        properties = tool['inputSchema']['properties']
-        for prop_name in properties:
-            properties[prop_name] = fix_property(properties[prop_name])
-
-# Save in AWS AgentCore Gateway format (just the tools array)
-with open('tool-schema.json', 'w') as f:
+    inp = tool.get('inputSchema', {})
+    props = inp.get('properties', {})
+    for k in list(props.keys()):
+        props[k] = fix_property(props[k])
+with open('dist/schema/tool-schema.json','w') as f:
     json.dump(tools, f, indent=2)
-
 print(f'✓ Converted {len(tools)} tools to AWS AgentCore Gateway format')
-print('✓ Flattened anyOf patterns for AWS compatibility')
-"
+PY
 
-# Cleanup
-rm -f tool-schema-raw.json
+# Validate JSON
+python3 -m json.tool dist/schema/tool-schema.json >/dev/null
 
-echo "✓ Generated tool-schema.json (AWS AgentCore Gateway compatible)"
-
-# Validate the schema is valid JSON
-if ! python3 -m json.tool tool-schema.json >/dev/null 2>&1; then
-  echo "ERROR: Generated schema is not valid JSON" >&2
-  exit 1
-fi
-
-# Show summary
-TOOL_COUNT=$(python3 -c "import json; schema = json.load(open('tool-schema.json')); print(len(schema.get('tools', [])))" 2>/dev/null || echo "unknown")
-echo "✓ Schema contains $TOOL_COUNT tools"
+# Summary
+TOOL_COUNT=$(python3 - <<'PY'
+import json
+try:
+    with open('dist/schema/tool-schema.json') as f:
+        data = json.load(f)
+    print(len(data) if isinstance(data, list) else len(data.get('tools', [])))
+except Exception:
+    print('unknown')
+PY
+)
+echo "✓ Schema contains $TOOL_COUNT tools -> $FINAL_OUT"

@@ -106,7 +106,7 @@ EOF
   "name": "google-search-mcp",
   "description": "Google Custom Search Engine MCP server",
   "computeTargetId": "$COMPUTE_TARGET_ID",
-  "toolsSchema": $(cat tool-schema.json)
+  "toolsSchema": $(cat dist/schema/tool-schema.json)
 }
 EOF
 

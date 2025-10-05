@@ -47,6 +47,8 @@ def get_app():
 
     app.add_event_handler("shutdown", close_http_client)
 
+    # No additional REST endpoints; use MCP endpoints (/sse, /messages)
+
     return app
 
 

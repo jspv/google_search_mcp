@@ -35,16 +35,16 @@ echo "=== AgentCore Gateway Setup ==="
 # Step 1: Generate tool schema
 echo "Step 1: Generating tool schema..."
 if ! ./deploy/gen_tool_schema.sh; then
-  echo "ERROR: Failed to generate tool schema. Ensure Node.js/npm is installed." >&2
+  echo "ERROR: Failed to generate tool schema." >&2
   exit 1
 fi
 
-if [[ ! -f "tool-schema.json" ]]; then
-  echo "ERROR: tool-schema.json not found after generation." >&2
+if [[ ! -f "dist/schema/tool-schema.json" ]]; then
+  echo "ERROR: dist/schema/tool-schema.json not found after generation." >&2
   exit 1
 fi
 
-echo "✓ Tool schema generated: tool-schema.json"
+echo "✓ Tool schema generated: dist/schema/tool-schema.json"
 
 # Step 2: Get Lambda function ARN if not provided
 if [[ -z "$FUNCTION_ARN" ]]; then
@@ -65,8 +65,8 @@ echo "✓ Lambda function ARN: $FUNCTION_ARN"
 
 # Step 3: Create Gateway configuration JSON
 echo "Step 3: Creating Gateway configuration template..."
-
-cat > gateway-config.json <<EOF
+mkdir -p dist/gateway
+cat > dist/gateway/gateway-config.json <<EOF
 {
   "lambdaTarget": {
     "functionArn": "$FUNCTION_ARN",
@@ -75,12 +75,12 @@ cat > gateway-config.json <<EOF
   "mcpProvider": {
     "name": "google-search-mcp",
     "description": "Google Custom Search Engine MCP server",
-    "toolSchema": $(cat tool-schema.json)
+    "toolSchema": $(cat dist/schema/tool-schema.json)
   }
 }
 EOF
 
-echo "✓ Gateway configuration saved: gateway-config.json"
+echo "✓ Gateway configuration saved: dist/gateway/gateway-config.json"
 
 # Step 4: Provide setup instructions
 echo ""
@@ -98,7 +98,7 @@ echo "3. Create an MCP Provider:"
 echo "   - Provider Name: google-search-mcp"
 echo "   - Description: Google Custom Search Engine MCP server"
 echo "   - Compute Target: Select the Lambda target created above"
-echo "   - Tools Schema: Copy and paste the contents of tool-schema.json"
+echo "   - Tools Schema: Copy and paste the contents of dist/schema/tool-schema.json"
 echo "   - Save the provider (note the provider endpoint URL)"
 echo ""
 echo "4. Configure Authentication (if required):"
@@ -121,7 +121,7 @@ echo "  --method tools/call \\"
 echo "  --params '{\"name\":\"google.search\",\"arguments\":{\"query\":\"AWS Lambda pricing\"}}'"
 echo ""
 echo "=== Files Created ==="
-echo "- tool-schema.json: MCP tools schema for Gateway"
-echo "- gateway-config.json: Configuration template (for reference)"
+echo "- dist/schema/tool-schema.json: MCP tools schema for Gateway"
+echo "- dist/gateway/gateway-config.json: Configuration template (for reference)"
 echo ""
 echo "Setup guidance complete!"

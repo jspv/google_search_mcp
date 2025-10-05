@@ -32,13 +32,24 @@ http = ["uvicorn[standard]>=0.30.0"]
 
 lambda = ["run-mcp-servers-with-aws-lambda>=0.4.2"]
 
+container = ["boto3>=1.40.18"]
 
+# For convenience, include both lambda and container dependencies
+aws = ["boto3>=1.40.18", "run-mcp-servers-with-aws-lambda>=0.4.2"]
 [tool.ruff]
 line-length = 88
 indent-width = 4
 fix = true
 target-version = "py310"
-exclude = ["docs", "build", "dist", ".venv", ".vscode", ".git"]
+exclude = [
+    "docs",
+    "build",
+    "dist",
+    ".venv",
+    ".vscode",
+    ".git",
+    "scripts/examples",
+]
 
 
 [tool.ruff.format]

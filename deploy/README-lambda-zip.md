@@ -3,10 +3,15 @@
 This packages the stdio MCP server for Lambda using the AWS adapter library
 (run-mcp-servers-with-aws-lambda) and exposes it behind Bedrock AgentCore Gateway.
 
-## Prereqs
-- AWS CLI configured with permissions to create/update a Lambda function
-- Python 3.12 on your build machine
-- A Lambda function created with runtime `python3.12` (or create one with the CLI)
+## Prerequisites
+
+1. **Python Environment**: Python 3.12+ with uv package manager
+2. **Lambda Dependencies**: Install Lambda-specific dependencies
+   ```bash
+   uv sync --extra lambda
+   ```
+3. **AWS CLI**: Configured with appropriate permissions
+4. **Google API Credentials**: API key and Custom Search Engine ID
 
 ## Build the ZIP
 

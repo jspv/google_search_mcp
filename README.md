@@ -2,6 +2,69 @@
 
 A Model Context Protocol (MCP) server that provides Google Custom Search functionality.
 
+**🎯 This repository demonstrates 5 different deployment patterns** for the same MCP functionality:
+
+1. **[stdio Mode](#1-stdio-mode-default-mcp)** - Standard MCP over stdin/stdout for local development and MCP client integration
+2. **[HTTP REST API](#2-http-rest-api-mode)** - RESTful endpoints for web application integration  
+3. **[HTTP Streaming](#3-http-streaming-mode-sse)** - Server-Sent Events for real-time applications
+4. **[AWS Lambda + AgentCore Gateway](#4-aws-lambda--agentcore-gateway)** - Serverless deployment with OAuth authentication
+5. **[Containerized MCP Service](#5-containerized-mcp-service)** - Docker containers deployed to ECS Fargate for scalable cloud deployment
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/jspv/google-search-mcp.git
+cd google-search-mcp
+uv sync
+```
+
+## Project structure
+
+- `server.py` / `server_http.py` / `server_http_stream.py` — MCP servers (stdio, HTTP, streaming)
+- `lambda_handler.py` — AWS Lambda adapter for MCP stdio server
+- `Dockerfile.mcp` — Container image for HTTP/streaming MCP service
+- `deploy/` — deployment assets
+   - `build_zip.sh` — build Lambda ZIP
+   - `cfn_deploy.sh` — deploy Lambda via CloudFormation
+   - `setup_gateway.sh` — generate schema and guide manual AgentCore setup
+   - `automate_gateway.sh` — attempt AgentCore setup via CLI
+   - `gen_tool_schema.sh` — generate MCP tool schema (uses Python stdio client)
+   - `cloudformation-*.yaml` — infrastructure templates
+   - `README-*.md` — deployment-specific docs
+- `scripts/` — developer/CI utilities
+   - `dump_tool_schema.py` — dump schema from an MCP server over stdio
+- `dist/` — build artifacts and generated outputs
+   - `schema/tool-schema.json` — generated tool schema for AgentCore
+   - `google_search_mcp_lambda.zip` — built Lambda package
+- `tests/` — unit and integration tests
+
+
+### Optional Dependencies
+
+Install additional dependencies based on your deployment needs:
+
+```bash
+# For HTTP/streaming modes
+uv sync --extra http
+
+# For AWS Lambda deployment
+uv sync --extra lambda
+
+# For containerized deployments (ECS/Fargate)
+uv sync --extra container
+
+# For AWS (both Lambda and container)
+uv sync --extra aws
+
+# For development
+uv sync --extra dev
+
+# Install multiple extras
+uv sync --extra http --extra aws --extra dev
+```
+
 ## Configuration
 
 This server uses [Dynaconf](https://www.dynaconf.com/) for configuration management, supporting both `.env` files and environment variables.
@@ -63,100 +126,166 @@ Get these from:
 
 ## Usage
 
-Run the server:
+This project provides 5 different deployment patterns for the same Google Search MCP functionality:
+
+### 1. stdio Mode (Default MCP)
+
+Standard MCP server for local development and integration with MCP clients:
+
 ```bash
+# Run via uv (recommended)
+uv run python -m server
+
+# Or direct execution
 python server.py
+
+# Run via uvx (no activation, from any folder)
+uvx --from /Users/justin/src/google_search_mcp google-search-mcp
+
+# Run via pipx (isolated, globally available)
+pipx install /Users/justin/src/google_search_mcp
+google-search-mcp
 ```
 
-### Web-based MCP (SSE)
+Communicates over stdin/stdout using the standard MCP protocol.
 
-If you are integrating with a browser or any client that uses MCP over HTTP/SSE, run the web server variant:
+### 2. HTTP REST API Mode
+
+RESTful endpoints for web application integration:
 
 ```bash
-# Install HTTP extras
+# Install HTTP extras and run
 uv sync --extra http
+uv run python -m server_http
 
-# Start the SSE MCP server (defaults to 127.0.0.1:8000)
+# With custom host/port
+HOST=0.0.0.0 PORT=8000 uv run python -m server_http
+```
+
+Available endpoints:
+- `GET /list_tools` - Get available tools schema
+- `POST /call_tool` - Execute a tool with JSON payload
+
+### 3. HTTP Streaming Mode (SSE)
+
+Server-Sent Events for real-time applications:
+
+```bash
+# Start the SSE MCP server
 uv run google-search-mcp-http
 
 # Or run directly
-uv run python -m server_http
+uv run python -m server_http_stream
 ```
 
-This exposes the standard MCP endpoints used by web clients:
-- GET /sse (Server-Sent Events connection)
-- POST /messages (MCP messages)
+Standard MCP endpoints for web clients:
+- `GET /sse` - Server-Sent Events connection
+- `POST /messages` - MCP message handling
 
 Notes:
-- CORS is enabled by default (CORS_ORIGINS="*"). Customize with `CORS_ORIGINS` env var.
-- Same configuration applies as stdio mode (`GOOGLE_API_KEY`, `GOOGLE_CX`, logging flags, etc.).
+- CORS enabled by default (customize with `CORS_ORIGINS`)
+- Same configuration as stdio mode (`GOOGLE_API_KEY`, `GOOGLE_CX`, etc.)
 
-### Run via uvx (no activation, from any folder)
+### 4. AWS Lambda + AgentCore Gateway
 
-The project exposes a console script `google-search-mcp` so you can run it with `uvx` without activating a venv:
-
+**Prerequisites**: 
 ```bash
-# Run using the repo as the source
-uvx --from /Users/justin/src/google_search_mcp google-search-mcp
+# Install Lambda dependencies
+uv sync --extra lambda
 
-# If you need .env loading, either run with cwd set to the repo
-(cd /Users/justin/src/google_search_mcp && uvx --from . google-search-mcp)
-
-# Or point Dynaconf directly at the .env
-DYNACONF_DOTENV_PATH=/Users/justin/src/google_search_mcp/.env \
-uvx --from /Users/justin/src/google_search_mcp google-search-mcp
+# Configure AWS credentials
+aws configure
 ```
 
-### Run via pipx (isolated, globally available)
-
-You can also install and run the script with pipx:
+Deploy to AWS Lambda with Bedrock AgentCore Gateway integration:
 
 ```bash
-# Install from local path
-pipx install /Users/justin/src/google_search_mcp
+# Build and deploy
+./deploy/build_zip.sh        # Cross-platform build
+./deploy/cfn_deploy.sh       # Deploy via CloudFormation
+./deploy/automate_gateway.sh # Setup AgentCore Gateway
 
-# Or from a VCS URL (example)
-# pipx install git+https://github.com/jspv/google_search_mcp.git
-
-# Run the server
-google-search-mcp
-
-# If you rely on .env, run it from the repo directory or set DYNACONF_DOTENV_PATH
-cd /Users/justin/src/google_search_mcp && google-search-mcp
-# or
-DYNACONF_DOTENV_PATH=/Users/justin/src/google_search_mcp/.env google-search-mcp
+# Test the deployment
+python3 deploy/test_gateway.py https://your-gateway-url.amazonaws.com client-id client-secret token-url
 ```
 
-## Quick start
+Features:
+- JSON-RPC 2.0 protocol with OAuth authentication
+- Serverless execution with environment variable inheritance
+- Integrated with AWS Bedrock AgentCore ecosystem
 
-This project uses httpx with HTTP/2 support enabled for better performance. The dependency is declared as `httpx[http2]` and will install the `h2` package automatically when you sync the environment.
+### 5. Containerized MCP Service
+
+**Prerequisites**:
+```bash
+# Install container dependencies (for ECR/ECS deployment)
+uv sync --extra container
+
+# Configure Docker and AWS
+docker --version
+aws configure
+```
+
+**Local Testing**:
+```bash
+# Build container
+docker build -f Dockerfile.mcp -t google-search-mcp .
+
+# Run locally
+docker run -p 8000:8000 --env-file .env -e MCP_MODE=http-stream google-search-mcp
+```
+
+**Deploy to AWS ECS Fargate**:
+```bash
+# Deploy to ECS Fargate
+./deploy/deploy_mcp_container.sh google-search-mcp us-east-1 ecs-fargate
+```
+
+Features:
+- Multi-mode container supporting stdio, HTTP, and streaming
+- Scalable deployment via ECS Fargate
+- Environment variable configuration
+- Health checks and monitoring
+
+**Note**: AgentCore Runtime uses preview SDK and requires manual configuration as APIs are not publicly available.
+
+### Configuration Notes
+
+All deployment patterns use the same configuration:
+- Set `DYNACONF_DOTENV_PATH` for .env loading when needed
+- Environment variables override settings.toml values
+- Logging configuration applies across all modes
+
+## Quick Start
+
+This project uses httpx with HTTP/2 support enabled. The dependency is declared as `httpx[http2]` and will install the `h2` package automatically.
 
 ### Using uv (recommended)
 
 ```bash
-# Install deps from pyproject/lockfile
+# Install dependencies
 uv sync
 
-# Create and fill in your configuration
+# Create and configure environment
 cp .env.example .env
 $EDITOR .env
 
 # Run tests (optional sanity check)
 uv run pytest -q
 
-# Start the MCP server
+# Start the MCP server (stdio mode)
 uv run python server.py
 ```
 
-### Try it quickly (no MCP client required)
+### Quick Test (no MCP client required)
 
-You can also call the tool function directly for a quick smoke test (uses your env vars):
+Test the search function directly:
 
 ```bash
 uv run python -c 'import asyncio, server; print(asyncio.run(server.search("site:python.org httpx", num=2, safe="off")))'
 ```
 
-Note: When using the MCP server with a client, the `search` tool parameters follow Google CSE semantics. In particular, `safe` must be one of `off` or `active`, and `num` is clamped to the CSE maximum of 10.
+Note: `safe` must be `off` or `active`, and `num` is clamped to maximum of 10 per Google CSE limits.
 
 ### Logging behavior
 
@@ -182,45 +311,6 @@ When a client spawns the server via `uvx`, logs go to the server process’s std
    uvx --from /path/to/repo google-search-mcp 2>> /tmp/google_search_mcp.log
    ```
 
-## Streamable HTTP Variant
-
-For clients that use StreamableHttpServerParams (non-SSE MCP over HTTP), run the Streamable HTTP server variant:
-
-```bash
-# Ensure HTTP extras are installed
-uv sync --extra http
-
-# Start the Streamable MCP server
-uv run google-search-mcp-stream
-
-# Or run directly
-uv run python -m server_http_stream
-```
-
-Client usage example with the official MCP streamable HTTP transport:
-
-```python
-import asyncio
-from mcp.client.session import ClientSession
-from mcp.client.streamable_http import streamable_http_client
-
-
-async def main():
-   async with streamable_http_client("http://127.0.0.1:8000") as (read, write):
-      async with ClientSession(read, write) as session:
-         await session.initialize()
-         tools = await session.list_tools()
-         print([t.name for t in tools.tools])
-
-
-if __name__ == "__main__":
-   asyncio.run(main())
-```
-
-Notes:
-- Endpoints are managed by FastMCP; you should not call `/sse` for this variant.
-- CORS is enabled and configurable with `CORS_ORIGINS`.
-
 ## Testing
 
 ### Unit Tests
@@ -240,34 +330,6 @@ uv run pytest tests/test_server_http.py
 ```
 
 ## Testing
-
-### Unit Tests
-
-Run the test suite to validate functionality:
-
-```bash
-# Run all tests
-uv run pytest
-
-# Run with quiet output
-uv run pytest -q
-
-# Run specific test files
-uv run pytest tests/test_server.py
-uv run pytest tests/test_server_http.py
-```
-
-### Local Testing
-
-Test the server locally using the MCP Inspector or direct HTTP calls:
-
-```bash
-# Start HTTP streaming server
-HOST=0.0.0.0 PORT=8000 uv run python -m server_http_stream
-
-# Test with curl (in another terminal)
-curl http://localhost:8000/list_tools
-```
 
 ## Testing
 
@@ -319,38 +381,17 @@ python3 deploy/test_gateway.py \
 
 This validates authentication, tool listing, and tool execution through the gateway.
 
-## AWS Lambda Deployment
+## Deployment Details
 
-Deploy this MCP server to AWS Lambda and integrate with Bedrock AgentCore Gateway:
+### AWS Lambda + AgentCore Gateway
+- Uses JSON-RPC 2.0 protocol with OAuth authentication
+- Cognito client credentials flow required
+- Manual console configuration for compute targets and MCP providers (APIs not publicly available)
+- See [`deploy/README-lambda-zip.md`](deploy/README-lambda-zip.md) for detailed instructions
 
-```bash
-# Build and deploy to Lambda
-./deploy/build_zip.sh        # Cross-platform build
-./deploy/cfn_deploy.sh       # Deploy via CloudFormation
+### AWS AgentCore Runtime  
+- Uses preview AgentCore SDK (placeholder implementation)
+- Requires manual configuration as APIs are not publicly available
+- Container-based deployment via ECR integration
+- Provides persistent sessions with microVM isolation
 
-# Setup AgentCore Gateway (attempts full automation)
-./deploy/automate_gateway.sh
-
-# If automation fails, use console-based setup
-./deploy/setup_gateway.sh    # Generate schema and instructions
-
-# Test the Gateway endpoint
-python3 deploy/test_gateway.py https://your-gateway-url.amazonaws.com client-id client-secret token-url
-```
-
-### Known Issues
-
-**Environment Variable Inheritance (RESOLVED)**: ~~There was an issue where environment variables set in the Lambda function were not properly inherited by the MCP server subprocess. This has been resolved by explicitly passing environment variables through the `StdioServerParameters.env` parameter.~~
-
-The Lambda handler now correctly passes environment variables to the MCP server subprocess, ensuring tool calls work properly.
-
-### AgentCore Gateway Integration
-
-The Gateway uses JSON-RPC 2.0 protocol (not standard MCP HTTP endpoints). Authentication requires:
-- Cognito client credentials OAuth flow
-- Token endpoint format: `https://domain.auth.region.amazoncognito.com/oauth2/token`
-- Proper JSON-RPC 2.0 request format for tool operations
-
-See [`deploy/README-lambda-zip.md`](deploy/README-lambda-zip.md) for detailed deployment instructions, including cross-platform builds, infrastructure as code, and AgentCore Gateway integration.
-
-**Note**: AgentCore Gateway compute targets and MCP providers currently require manual console configuration as APIs are not publicly available.

@@ -9,6 +9,8 @@ wheels/
 .pytest_cache/
 
 # uv
+# Keep lockfile tracked for reproducible builds
+# (remove the next line if you prefer not to track it)
 uv.lock
 
 .vscode/
@@ -17,6 +19,8 @@ uv.lock
 .secret*
 settings.toml
 gateway-config.json
+dist/gateway/gateway-config.json
+.build_dcr/
 
 # Virtual environments
 .venv
