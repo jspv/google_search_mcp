@@ -5,8 +5,8 @@ A Model Context Protocol (MCP) server that provides Google Custom Search functio
 **🎯 This repository demonstrates 5 different deployment patterns** for the same MCP functionality:
 
 1. **[stdio Mode](#1-stdio-mode-default-mcp)** - Standard MCP over stdin/stdout for local development and MCP client integration
-2. **[HTTP REST API](#2-http-rest-api-mode)** - RESTful endpoints for web application integration  
-3. **[HTTP Streaming](#3-http-streaming-mode-sse)** - Server-Sent Events for real-time applications
+2. **[HTTP over SSE](#2-http-over-sse-mcp-transport)** - MCP HTTP transport using Server‑Sent Events (browser-friendly)
+3. **[HTTP Streamable](#3-http-streamable-non-sse)** - MCP Streamable HTTP transport (non‑SSE)
 4. **[AWS Lambda + AgentCore Gateway](#4-aws-lambda--agentcore-gateway)** - Serverless deployment with OAuth authentication
 5. **[Containerized MCP Service](#5-containerized-mcp-service)** - Docker containers deployed to ECS Fargate for scalable cloud deployment
 
@@ -25,11 +25,13 @@ uv sync
 - `server.py` / `server_http.py` / `server_http_stream.py` — MCP servers (stdio, HTTP, streaming)
 - `lambda_handler.py` — AWS Lambda adapter for MCP stdio server
 - `Dockerfile.mcp` — Container image for HTTP/streaming MCP service
-- `deploy/` — deployment assets
+- `deploy/` — legacy deployment assets (use `deploy_aws_agentcore_auth0/`)
+- `deploy_aws_agentcore_auth0/` — canonical Auth0 + AgentCore Gateway deploy scripts and templates
    - `build_zip.sh` — build Lambda ZIP
-   - `cfn_deploy.sh` — deploy Lambda via CloudFormation
-   - `setup_gateway.sh` — generate schema and guide manual AgentCore setup
-   - `automate_gateway.sh` — attempt AgentCore setup via CLI
+   - `deploy_lambda.sh` — deploy Lambda via CloudFormation
+   - `AGENTCORE_GATEWAY_CHECKLIST.md` — complete Gateway (Lambda + Cognito) integration checklist
+   
+   - `deploy_gateway.sh` — attempt AgentCore setup via CLI
    - `gen_tool_schema.sh` — generate MCP tool schema (uses Python stdio client)
    - `cloudformation-*.yaml` — infrastructure templates
    - `README-*.md` — deployment-specific docs
@@ -149,42 +151,49 @@ google-search-mcp
 
 Communicates over stdin/stdout using the standard MCP protocol.
 
-### 2. HTTP REST API Mode
+### 2. HTTP over SSE (MCP transport)
 
-RESTful endpoints for web application integration:
+MCP over HTTP using Server‑Sent Events (SSE). This exposes the standard MCP HTTP endpoints used by browser clients.
 
 ```bash
 # Install HTTP extras and run
 uv sync --extra http
 uv run python -m server_http
 
+# Or via console script (if installed)
+uv run google-search-mcp-http
+
 # With custom host/port
 HOST=0.0.0.0 PORT=8000 uv run python -m server_http
 ```
 
-Available endpoints:
-- `GET /list_tools` - Get available tools schema
-- `POST /call_tool` - Execute a tool with JSON payload
-
-### 3. HTTP Streaming Mode (SSE)
-
-Server-Sent Events for real-time applications:
-
-```bash
-# Start the SSE MCP server
-uv run google-search-mcp-http
-
-# Or run directly
-uv run python -m server_http_stream
-```
-
-Standard MCP endpoints for web clients:
-- `GET /sse` - Server-Sent Events connection
-- `POST /messages` - MCP message handling
+Available MCP endpoints (not a custom REST API):
+- `GET /sse` — SSE connection for events
+- `POST /messages` — MCP message handling
 
 Notes:
-- CORS enabled by default (customize with `CORS_ORIGINS`)
-- Same configuration as stdio mode (`GOOGLE_API_KEY`, `GOOGLE_CX`, etc.)
+- CORS enabled by default (customize with `CORS_ORIGINS`).
+- Same configuration as stdio mode (`GOOGLE_API_KEY`, `GOOGLE_CX`, etc.).
+
+### 3. HTTP Streamable (non‑SSE)
+
+MCP Streamable HTTP transport for clients that don’t use SSE.
+
+```bash
+# Start the Streamable HTTP MCP server
+uv sync --extra http
+uv run python -m server_http_stream
+
+# Or via console script (if installed)
+uv run google-search-mcp-stream
+
+# Custom host/port
+HOST=0.0.0.0 PORT=8000 uv run python -m server_http_stream
+```
+
+Notes:
+- Not a REST interface. Use an MCP client that supports the Streamable HTTP transport.
+- CORS behavior matches the SSE app and is configurable via `CORS_ORIGINS`.
 
 ### 4. AWS Lambda + AgentCore Gateway
 
@@ -201,12 +210,12 @@ Deploy to AWS Lambda with Bedrock AgentCore Gateway integration:
 
 ```bash
 # Build and deploy
-./deploy/build_zip.sh        # Cross-platform build
-./deploy/cfn_deploy.sh       # Deploy via CloudFormation
-./deploy/automate_gateway.sh # Setup AgentCore Gateway
+./deploy_aws_agentcore_auth0/build_zip.sh        # Cross-platform build
+./deploy_aws_agentcore_auth0/deploy_lambda.sh    # Deploy via CloudFormation
+./deploy_aws_agentcore_auth0/deploy_gateway.sh # Setup AgentCore Gateway
 
 # Test the deployment
-python3 deploy/test_gateway.py https://your-gateway-url.amazonaws.com client-id client-secret token-url
+python3 deploy_aws_agentcore_auth0/test_gateway_auth0.py https://your-gateway-url.amazonaws.com client-id client_secret https://your-domain.auth0.com [audience]
 ```
 
 Features:
@@ -356,15 +365,7 @@ uv run pytest tests/test_logging.py             # Logging configuration
 
 ### Local Testing
 
-Test the server locally using the MCP Inspector or direct HTTP calls:
-
-```bash
-# Start HTTP streaming server
-HOST=0.0.0.0 PORT=8000 uv run python -m server_http_stream
-
-# Test with curl (in another terminal)
-curl http://localhost:8000/list_tools
-```
+Use an MCP client (e.g., Inspector or your app) that supports SSE or Streamable HTTP transports. There is no custom REST `list_tools`/`call_tool` in this server.
 
 ### AWS Gateway Testing
 
@@ -372,11 +373,12 @@ For AWS AgentCore Gateway deployments, use the dedicated test script:
 
 ```bash
 # Test gateway with authentication
-python3 deploy/test_gateway.py \
-  "https://your-gateway.amazonaws.com/mcp" \
-  "client-id" \
-  "client-secret" \
-  "https://domain.auth.region.amazoncognito.com/oauth2/token"
+python3 deploy_aws_agentcore_auth0/test_gateway_auth0.py \
+   "https://your-gateway.amazonaws.com/mcp" \
+   "client-id" \
+   "client-secret" \
+   "https://your-domain.auth0.com" \
+   "https://your-gateway.amazonaws.com/mcp"  # audience (optional depending on IdP)
 ```
 
 This validates authentication, tool listing, and tool execution through the gateway.
@@ -387,7 +389,7 @@ This validates authentication, tool listing, and tool execution through the gate
 - Uses JSON-RPC 2.0 protocol with OAuth authentication
 - Cognito client credentials flow required
 - Manual console configuration for compute targets and MCP providers (APIs not publicly available)
-- See [`deploy/README-lambda-zip.md`](deploy/README-lambda-zip.md) for detailed instructions
+- See [`deploy/README-lambda-zip.md`](deploy/README-lambda-zip.md) for detailed instructions (use scripts under `deploy_aws_agentcore_auth0/`)
 
 ### AWS AgentCore Runtime  
 - Uses preview AgentCore SDK (placeholder implementation)

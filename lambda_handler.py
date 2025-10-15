@@ -61,13 +61,18 @@ def handler(event, context):
         # Optional logging configuration
         "GOOGLE_LOG_LEVEL": os.environ.get("GOOGLE_LOG_LEVEL"),
         "GOOGLE_LOG_QUERIES": os.environ.get("GOOGLE_LOG_QUERIES"),
+        "GOOGLE_LOG_QUERY_TEXT": os.environ.get("GOOGLE_LOG_QUERY_TEXT"),
+        "GOOGLE_LOG_FILE": os.environ.get("GOOGLE_LOG_FILE"),
+        # Optional domain allowlist and dotenv path
+        "GOOGLE_ALLOW_DOMAINS": os.environ.get("GOOGLE_ALLOW_DOMAINS"),
+        "DYNACONF_DOTENV_PATH": os.environ.get("DYNACONF_DOTENV_PATH"),
         # Essential system environment variables
         "PATH": os.environ.get("PATH", ""),
         "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
     }
     # Filter out None values to avoid passing empty environment variables
     env_vars = {k: v for k, v in env_vars.items() if v is not None}
-    
+
     server_params = StdioServerParameters(
         command=sys.executable,
         args=["-m", "server"],

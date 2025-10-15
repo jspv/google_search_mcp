@@ -12,11 +12,11 @@ echo "Testing AgentCore Gateway with your credentials..."
 echo "Gateway: $GATEWAY_URL"
 
 echo ""
-python3 deploy/test_gateway.py "$GATEWAY_URL" "$CLIENT_ID" "$CLIENT_SECRET" "$TOKEN_URL"
+python3 deploy_aws_agentcore_auth0/test_gateway_auth0.py "$GATEWAY_URL" "$CLIENT_ID" "$CLIENT_SECRET" "$TOKEN_URL"
 
 # Alternative env var usage:
 # export GATEWAY_URL="$GATEWAY_URL"
 # export COGNITO_CLIENT_ID="$CLIENT_ID"
 # export COGNITO_CLIENT_SECRET="$CLIENT_SECRET"
 # export COGNITO_TOKEN_URL="$TOKEN_URL"
-# python3 deploy/test_gateway.py
+# python3 deploy_aws_agentcore_auth0/test_gateway_auth0.py
