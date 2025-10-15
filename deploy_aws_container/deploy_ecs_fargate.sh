@@ -119,7 +119,10 @@ TASK_DEFINITION='{
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "command": [
+          "CMD-SHELL",
+          "curl -sf -X OPTIONS -H 'Origin: http://localhost' -H 'Access-Control-Request-Method: POST' http://localhost:8000/messages || exit 1"
+        ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,

@@ -18,7 +18,7 @@ This packages the stdio MCP server for Lambda using the AWS adapter library
 Use the helper shell script:
 
 ```bash
-./deploy/build_zip.sh
+./deploy_aws_agentcore_auth0/build_zip.sh
 ```
 
 This creates `dist/google_search_mcp_lambda.zip` containing:
@@ -61,7 +61,7 @@ After deploying the Lambda, use the automation script to attempt full automation
 
 ```bash
 # Try full API-based automation
-./deploy/automate_gateway.sh
+./deploy_aws_agentcore_auth0/automate_gateway.sh
 
 # This script will:
 # 1. Generate tool schema automatically
@@ -76,10 +76,10 @@ If the automation script reports that APIs are not available, use the setup guid
 
 ```bash
 # Generate schema and setup guidance
-./deploy/setup_gateway.sh
+./deploy_aws_agentcore_auth0/setup_gateway.sh
 
 # Or with explicit function ARN
-./deploy/setup_gateway.sh arn:aws:lambda:us-east-1:123456789:function:google-search-mcp
+./deploy_aws_agentcore_auth0/setup_gateway.sh arn:aws:lambda:us-east-1:123456789:function:google-search-mcp
 ```
 
 This will:
@@ -102,7 +102,12 @@ Follow the printed instructions to:
 Once configured, test the endpoint:
 
 ```bash
-python3 deploy/test_gateway.py https://YOUR_GATEWAY_URL/mcp/google-search-mcp client-id client-secret token-url
+python3 deploy_aws_agentcore_auth0/test_gateway_auth0.py \
+  https://YOUR_GATEWAY_URL/mcp \
+  your-auth0-client-id \
+  your-auth0-client-secret \
+  https://your-tenant.auth0.com \
+  https://YOUR_GATEWAY_URL/mcp # audience (optional)
 ```
 
 This validates both the tools/list and a sample search query.
@@ -125,12 +130,12 @@ This validates both the tools/list and a sample search query.
 
 ## Deploy with CloudFormation (optional)
 
-You can deploy the Lambda using the provided template `deploy/cloudformation-lambda.yaml`.
+You can deploy the Lambda using the provided template `deploy_aws_agentcore_auth0/cloudformation-lambda.yaml`.
 
 1) Build and upload the ZIP (the helper uses a timestamped S3 key so CloudFormation always detects changes)
 
 ```bash
-./deploy/build_zip.sh
+./deploy_aws_agentcore_auth0/build_zip.sh
 aws s3 cp dist/google_search_mcp_lambda.zip s3://YOUR_BUCKET/path/google_search_mcp_lambda.zip
 ```
 
@@ -139,7 +144,7 @@ aws s3 cp dist/google_search_mcp_lambda.zip s3://YOUR_BUCKET/path/google_search_
 ```bash
 aws cloudformation deploy \
   --stack-name google-search-mcp \
-  --template-file deploy/cloudformation-lambda.yaml \
+  --template-file deploy_aws_agentcore_auth0/cloudformation-lambda.yaml \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
     FunctionName=google-search-mcp \
@@ -178,10 +183,10 @@ export TIMEOUT=60
 export MEMORY=512
 export LOG_RETENTION=14
 
-# run: ./deploy/cfn_deploy.sh <stack-name> <s3-bucket> [s3-prefix] [region]
-./deploy/cfn_deploy.sh google-search-mcp my-artifacts-bucket path/to us-west-2
+# run: ./deploy_aws_agentcore_auth0/deploy_lambda.sh <stack-name> <s3-bucket> [s3-prefix] [region]
+./deploy_aws_agentcore_auth0/deploy_lambda.sh google-search-mcp my-artifacts-bucket path/to us-west-2
 ```
 
 Notes:
 - If you already have an execution role, set `ROLE_ARN` before running.
-- If you see a permissions error running the script, you can either run `chmod +x deploy/cfn_deploy.sh` or invoke it with `bash deploy/cfn_deploy.sh ...`.
+- If you see a permissions error running the script, you can either run `chmod +x deploy_aws_agentcore_auth0/deploy_lambda.sh` or invoke it with `bash deploy_aws_agentcore_auth0/deploy_lambda.sh ...`.

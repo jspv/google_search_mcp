@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Deploy the google-search MCP server as an AWS Lambda function (ZIP-based) for use behind Bedrock AgentCore Gateway.
+Description: Deploy the google-search MCP server as an AWS Lambda function for use behind Bedrock AgentCore Gateway.
 
 Parameters:
   FunctionName:
@@ -26,6 +26,14 @@ Parameters:
     AllowedValues:
       - python3.12
     Description: Lambda runtime. Build the ZIP with matching Python version.
+
+  Architecture:
+    Type: String
+    Default: arm64
+    AllowedValues:
+      - x86_64
+      - arm64
+    Description: Lambda architecture. arm64 is cost-effective; use x86_64 if dependencies require it.
 
   TimeoutSeconds:
     Type: Number
@@ -132,7 +140,7 @@ Resources:
       Timeout: !Ref TimeoutSeconds
       MemorySize: !Ref MemorySizeMB
       Architectures:
-        - x86_64
+        - !Ref Architecture
       Environment:
         Variables:
           GOOGLE_API_KEY: !Ref GoogleApiKey

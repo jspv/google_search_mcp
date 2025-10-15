@@ -58,7 +58,7 @@ if [[ "$USE_DOCKER" == "1" ]]; then
   fi
   if [[ -z "$DOCKER_CLI_BIN" ]]; then
     echo "Container CLI not found. Install Docker Desktop or Podman, or set DOCKER_CLI to the binary path." >&2
-    echo "Example: DOCKER_CLI=/opt/homebrew/bin/docker ./deploy/build_zip.sh" >&2
+    echo "Example: DOCKER_CLI=/opt/homebrew/bin/docker ./deploy_aws_agentcore_auth0/build_zip.sh" >&2
     exit 2
   fi
 
@@ -69,7 +69,6 @@ if [[ "$USE_DOCKER" == "1" ]]; then
   fi
 
   echo "Using container CLI: $DOCKER_CLI_BIN"
-  # Use Lambda Python 3.12 base with x86_64 platform to match the CFN template
   DOCKER_IMAGE="public.ecr.aws/lambda/python:3.12"
   "$DOCKER_CLI_BIN" run --rm \
     --platform="$DOCKER_PLATFORM" \
@@ -160,9 +159,13 @@ cp "$ROOT_DIR/server.py" "$STAGE/"
 cp "$ROOT_DIR/lambda_handler.py" "$STAGE/"
 
 # Create ZIP
-( cd "$STAGE" && zip -r9 "$DIST_DIR/google_search_mcp_lambda.zip" . >/dev/null )
+
+# Final zip path
+ZIP_PATH="$DIST_DIR/lambda.zip"
+
+( cd "$STAGE" && zip -r9 "$ZIP_PATH" . >/dev/null )
 
 # Show result
-ls -lh "$DIST_DIR/google_search_mcp_lambda.zip"
+ls -lh "$ZIP_PATH"
 
-echo "\nZIP ready: $DIST_DIR/google_search_mcp_lambda.zip"
+echo "\nZIP ready: $ZIP_PATH"
