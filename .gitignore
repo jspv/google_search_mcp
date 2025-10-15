@@ -27,6 +27,9 @@ dist/gateway/gateway-config.json
 
 # Environment variables (keep secrets safe)
 .env
+# Persisted deploy state files (both root and deploy folder variants)
+.deploy.env
+deploy_aws_agentcore_auth0/.deploy.env
 
 # Ignore only top-level test helpers (keep tests/ directory tracked)
 /test*.py
