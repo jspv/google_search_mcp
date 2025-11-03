@@ -2,6 +2,10 @@
 
 A Model Context Protocol (MCP) server that provides Google Custom Search functionality.
 
+<a href="https://glama.ai/mcp/servers/@jspv/google_search_mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@jspv/google_search_mcp/badge" alt="Google Search Server MCP server" />
+</a>
+
 **🎯 This repository demonstrates 5 different deployment patterns** for the same MCP functionality:
 
 1. **[stdio Mode](#1-stdio-mode-default-mcp)** - Standard MCP over stdin/stdout for local development and MCP client integration
@@ -177,7 +181,7 @@ Notes:
 
 ### 3. HTTP Streamable (non‑SSE)
 
-MCP Streamable HTTP transport for clients that don’t use SSE.
+MCP Streamable HTTP transport for clients that don't use SSE.
 
 ```bash
 # Start the Streamable HTTP MCP server
@@ -308,7 +312,7 @@ Example log line:
 2025-09-27T12:34:56+0000 INFO google_search_mcp: search q_hash=1a2b3c4d dt_ms=123 num=5 start=1 safe=off endpoint=cse q="site:python.org httpx"
 ```
 
-When a client spawns the server via `uvx`, logs go to the server process’s stderr by default (safe for MCP stdio). To persist logs regardless of the client’s stderr handling:
+When a client spawns the server via `uvx`, logs go to the server process's stderr by default (safe for MCP stdio). To persist logs regardless of the client's stderr handling:
 
 - Set a file path (absolute recommended):
    ```
@@ -396,4 +400,3 @@ This validates authentication, tool listing, and tool execution through the gate
 - Requires manual configuration as APIs are not publicly available
 - Container-based deployment via ECR integration
 - Provides persistent sessions with microVM isolation
-
